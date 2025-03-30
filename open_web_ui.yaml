@@ -50,6 +50,9 @@ services:
 
   stable-diffusion:
     image: my-stable-diffusion:latest
+    build:
+      context: ./stable-diffusion/  # Directory containing Dockerfile
+      dockerfile: Dockerfile  # Explicit filename (if different from default)
     container_name: stable-diffusion
     ports:
       - "7860:7860"
