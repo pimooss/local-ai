@@ -1,35 +1,32 @@
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
-# Set compute capability for RTX 20xx/P40/P100 (7.5)
-ENV TORCH_CUDA_ARCH_LIST="7.5"  
-ENV XFORMERS_FORCE_BUILD=1
+# Set environment variables to prevent path issues
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PATH="/stable-diffusion-webui/venv/bin:$PATH"
 
-# System dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git ninja-build cmake build-essential \
-    python3 python3-pip python3-venv \
-    libgl1-mesa-glx libglib2.0-0 && \
-    rm -rf /var/lib/apt/lists/*
+    git \
+    python3 \
+    python3-pip \
+    python3-venv \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 -v
 
+# Create directory without spaces
 WORKDIR /stable-diffusion-webui
 
-# Clone repositories with specific commits
+# Clone repository and checkout specific commit for stability
 RUN git clone https://github.com/AUTOMATIC1111/stable-diffusion-webui.git . && \
-    git checkout 22bcc7be4 && \
-    git clone https://github.com/facebookresearch/xformers.git repositories/xformers
-
-# Build xFormers from source
-RUN cd repositories/xformers && \
-    git submodule update --init --recursive && \
-    pip install -e . -v --no-cache-dir 2>&1 | tee build.log
-
-# Install remaining dependencies
-RUN pip install --no-cache-dir \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r requirements_versions.txt
+    pip install --no-cache-dir xformers
 
 VOLUME /stable-diffusion-webui/models
+VOLUME /stable-diffusion-webui/outputs
+
 EXPOSE 7860
 
-ENTRYPOINT ["python3", "launch.py", "--listen", "--xformers", "--api"]
+ENTRYPOINT ["python3", "launch.py", "--listen", "--enable-insecure-extension-access", "--xformers", "--api"]

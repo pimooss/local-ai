@@ -30,11 +30,17 @@ services:
     ports:
       - 3000:8080
     environment:
-      - 'OLLAMA_BASE_URL=http://ollama:11434'
-      - 'OLLAMA_HOST=ollama:11434'
-      - 'WEBUI_SECRET_KEY='
-      - AUTOMATIC1111_BASE_URL=http://host.docker.internal:7860/
-      - ENABLE_IMAGE_GENERATION=True 
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_HOST=ollama:11434
+      - WEBUI_SECRET_KEY=
+      - AUTOMATIC1111_BASE_URL=http://stable-diffusion:7860/
+      - ENABLE_IMAGE_GENERATION=True
+      - OPENWEBUI_AGENTIC_ENABLED=true
+      - AGENT_PIPELINE_URL=http://pipelines:9099
+      - PIPELINES_API_KEY=${PIPELINES_API_KEY}
+      - WEBUI_SECRET_KEY=${OPENWEBUI_SECRET_KEY}
+      - WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
@@ -45,6 +51,23 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    networks:
+      - ollama-net
+
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:cuda
+    container_name: pipelines
+    environment:
+      - OLLAMA_HOST=ollama:11434
+      - PIPELINE_STRATEGY=moa-v1
+      - PIPELINES_API_KEY=${PIPELINES_API_KEY}
+      - PIPELINES_URLS=https://github.com/open-webui/pipelines/blob/main/examples/pipelines/rag/text_to_sql_pipeline.py
+    volumes:
+      - pipelines:/app/pipelines
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "9099:9099"
     networks:
       - ollama-net
 
@@ -76,12 +99,30 @@ services:
     depends_on:
       - ollama
 
+  searxng:
+    # build: https://github.com/searxng/searxng.git
+    # container_name: searxng
+    image: searxng/searxng
+    volumes:
+      - searxng:/etc/searxng
+    ports:
+      - "8080:8080"
+    environment:
+      - BASE_URL=http://0.0.0.0:8080
+      - ENABLE_CORS=True
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - ollama-net
+
 
 volumes:
   ollama:
   open-webui: {}
   sd-models:
   sd-outputs:
+  pipelines:
+  searxng:
 
 networks:
   ollama-net:
